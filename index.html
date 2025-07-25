@@ -28,8 +28,7 @@
             border-radius: 20px; /* More rounded corners */
             box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15); /* Softer, larger shadow */
             align-items: center;
-            max-width: 95vw; /* More responsive width */
-            width: 550px; /* Slightly wider max width */
+            width: min(550px, 95vw); /* Responsive width */
             box-sizing: border-box;
         }
         h1 {
@@ -41,9 +40,10 @@
             background-color: #f0f8ff; /* Alice blue, very light pastel */
             border-radius: 15px; /* More rounded corners */
             touch-action: none; /* Prevent browser touch actions like scrolling */
-            width: 100%; /* Make canvas responsive */
+            width: 100%;
             max-width: 400px; /* Limit canvas size */
-            height: auto; /* Maintain aspect ratio */
+            min-width: 250px; /* Keep cells finger friendly */
+            aspect-ratio: 1 / 1; /* Ensure square canvas */
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
         }
         .loose-letters-container {
