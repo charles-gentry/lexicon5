@@ -1105,8 +1105,10 @@
             if (e.button !== 0) return;
 
             const canvasRect = canvas.getBoundingClientRect();
-            const canvasX = e.clientX - canvasRect.left;
-            const canvasY = e.clientY - canvasRect.top;
+            const scaleX = canvas.width / canvasRect.width;
+            const scaleY = canvas.height / canvasRect.height;
+            const canvasX = (e.clientX - canvasRect.left) * scaleX;
+            const canvasY = (e.clientY - canvasRect.top) * scaleY;
 
             const clickedCell = getGridCellAt(canvasX, canvasY);
             const centralColIndex = Math.floor(GRID_SIZE / 2);
@@ -1171,8 +1173,11 @@
             const canvasRect = canvas.getBoundingClientRect();
             const looseRect = looseLettersContainer.getBoundingClientRect();
 
-            const canvasX = clientX - canvasRect.left;
-            const canvasY = clientY - canvasRect.top;
+            const scaleX = canvas.width / canvasRect.width;
+            const scaleY = canvas.height / canvasRect.height;
+
+            const canvasX = (clientX - canvasRect.left) * scaleX;
+            const canvasY = (clientY - canvasRect.top) * scaleY;
 
             dragCurrentX = canvasX;
             dragCurrentY = canvasY;
