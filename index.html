@@ -129,6 +129,22 @@
             transform: translateY(0);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
+
+        .confetti-piece {
+            position: fixed;
+            top: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            opacity: 0.9;
+            pointer-events: none;
+            animation: confetti-fall 3s linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% { transform: translateY(0) rotate(0deg); }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -551,6 +567,9 @@
                 messageType = "error";
             }
             showMessage(message, messageType);
+            if (messageType === "success") {
+                triggerConfetti();
+            }
         }
 
         /**
@@ -562,6 +581,19 @@
             const msgBox = document.getElementById('messageBox');
             msgBox.textContent = message;
             msgBox.className = `message-box ${type} ${message ? 'show' : ''}`;
+        }
+
+        function triggerConfetti() {
+            const colors = ['#FFC107', '#FF5722', '#4CAF50', '#2196F3', '#9C27B0'];
+            for (let i = 0; i < 30; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti-piece';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.animationDelay = (Math.random() * 0.5) + 's';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 3000);
+            }
         }
 
         // Event listener for resetting the game
