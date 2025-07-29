@@ -69,12 +69,11 @@
             font-size: 2rem; /* Slightly larger font */
             font-weight: bold;
             color: #2a52be; /* Darker blue for contrast */
-            cursor: grab;
+            cursor: pointer;
             transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
             box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .loose-letter-slot:active {
-            cursor: grabbing;
             transform: scale(1.05);
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 5px 10px rgba(0, 0, 0, 0.2);
         }
@@ -162,16 +161,8 @@
         let solutionGrid = []; // Stores the complete solution for validation
         let validWords = new Set(); // Dictionary of valid words for the current puzzle
 
-        // Drag and drop state
-        let isDragging = false;
-        let draggedLetter = null; // The character being dragged
-        let draggedFrom = null; // 'grid' or 'loose'
-        let originalGridCell = null; // { row, col } if dragged from grid
-        let originalLooseSlotIndex = -1; // Index in looseLetters array if dragged from loose pool
-        let dragCurrentX = 0;
-        let dragCurrentY = 0;
-        let dropTargetGridCell = null; // { row, col } of the currently hovered valid grid cell
-        let dropTargetLooseArea = false; // True if hovering over the loose letters container
+        // Tap input state
+        let selectedRow = 0; // Currently highlighted row in the central column
 
         // A comprehensive dictionary of common 5-letter words
         const dictionary = [
@@ -977,7 +968,7 @@
                 
                 validWords.clear(); // Clear previous valid words
                 puzzle.puzzleSpecificWords.forEach(word => validWords.add(word));
-                showMessage("New puzzle generated! Drag letters to complete the grid.", "success");
+                showMessage("New puzzle generated! Tap letters to fill the highlighted cells.", "success");
             } else {
                 showMessage("Oops! It seems we couldn't create a perfect puzzle right now. Let's try again for a fresh start!", "error");
                 // Clear the grid if no puzzle could be generated
@@ -986,6 +977,7 @@
                 validWords.clear();
             }
             
+            highlightNextEmpty(0);
             drawGame();
             renderLooseLettersHtml();
         }
@@ -1043,39 +1035,14 @@
                 }
             }
 
-            // Highlight drop target if dragging and valid
-            if (isDragging && dropTargetGridCell) {
-                const { row, col } = dropTargetGridCell;
-                ctx.fillStyle = 'rgba(173, 216, 230, 0.5)'; /* Light blue with transparency */
-                ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            // Highlight the currently selected cell
+            if (selectedRow !== -1) {
+                const centralColIndex = Math.floor(GRID_SIZE / 2);
+                ctx.fillStyle = 'rgba(173, 216, 230, 0.5)';
+                ctx.fillRect(centralColIndex * CELL_SIZE, selectedRow * CELL_SIZE, CELL_SIZE, CELL_SIZE);
                 ctx.strokeStyle = '#4f46e5';
                 ctx.lineWidth = 3;
-                ctx.strokeRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            }
-            
-            // Highlight loose letters area if hovering
-            if (isDragging && dropTargetLooseArea) {
-                // Get the bounding box of the loose letters container
-                const looseRect = looseLettersContainer.getBoundingClientRect();
-                const canvasRect = canvas.getBoundingClientRect();
-
-                // Convert looseRect coordinates to canvas coordinates (relative to canvas top-left)
-                const xOnCanvas = looseRect.left - canvasRect.left;
-                const yOnCanvas = looseRect.top - canvasRect.top;
-                const widthOnCanvas = looseRect.width;
-                const heightOnCanvas = looseRect.height;
-
-                ctx.fillStyle = 'rgba(255, 223, 186, 0.5)'; /* Light peach with transparency */
-                ctx.fillRect(xOnCanvas, yOnCanvas, widthOnCanvas, heightOnCanvas);
-                ctx.strokeStyle = '#f59e0b'; /* yellow-600 */
-                ctx.lineWidth = 3;
-                ctx.strokeRect(xOnCanvas, yOnCanvas, widthOnCanvas, heightOnCanvas);
-            }
-
-            // Draw the dragged letter floating
-            if (draggedLetter !== null && isDragging) {
-                ctx.fillStyle = '#1e293b';
-                ctx.fillText(draggedLetter, dragCurrentX, dragCurrentY);
+                ctx.strokeRect(centralColIndex * CELL_SIZE, selectedRow * CELL_SIZE, CELL_SIZE, CELL_SIZE);
             }
         }
 
@@ -1092,7 +1059,7 @@
                 letterSlot.textContent = letter;
                 letterSlot.dataset.letter = letter;
                 letterSlot.dataset.index = index; // Store original index
-                letterSlot.addEventListener('pointerdown', handleLooseLetterPointerDown);
+                letterSlot.addEventListener('click', handleLooseLetterClick);
                 looseLettersContainer.appendChild(letterSlot);
             });
         }
@@ -1101,9 +1068,8 @@
          * Handles pointerdown event on the canvas (for dragging from grid).
          * @param {PointerEvent} e - The pointer event.
          */
-        function handleCanvasPointerDown(e) {
+        function handleCanvasClick(e) {
             e.preventDefault();
-            if (e.button !== 0) return;
 
             const canvasRect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / canvasRect.width;
@@ -1114,152 +1080,51 @@
             const clickedCell = getGridCellAt(canvasX, canvasY);
             const centralColIndex = Math.floor(GRID_SIZE / 2);
 
-            // Only allow dragging from the central column, if it has a letter
-            if (clickedCell && clickedCell.col === centralColIndex && gridData[clickedCell.row][clickedCell.col] !== null) {
-                isDragging = true;
-                draggedFrom = 'grid';
-                draggedLetter = gridData[clickedCell.row][clickedCell.col];
-                originalGridCell = { row: clickedCell.row, col: clickedCell.col };
-                
-                // Temporarily clear the letter from the grid
-                gridData[clickedCell.row][clickedCell.col] = null;
-                
-                dragCurrentX = canvasX;
-                dragCurrentY = canvasY;
+            if (!clickedCell || clickedCell.col !== centralColIndex) return;
 
-                window.addEventListener('pointermove', handleGlobalPointerMove);
-                window.addEventListener('pointerup', handleGlobalPointerUp);
-                drawGame(); 
+            if (gridData[clickedCell.row][centralColIndex] === null) {
+                // Just select the empty cell
+                selectedRow = clickedCell.row;
+            } else {
+                // Remove the letter back to the pool
+                looseLetters.push(gridData[clickedCell.row][centralColIndex]);
+                gridData[clickedCell.row][centralColIndex] = null;
+                selectedRow = clickedCell.row;
+                renderLooseLettersHtml();
             }
+
+            drawGame();
         }
 
-        /**
-         * Handles pointerdown event on a loose letter slot.
-         * @param {PointerEvent} e - The pointer event.
-         */
-        function handleLooseLetterPointerDown(e) {
-            e.preventDefault(); 
-            if (e.button !== 0) return; 
-
+        function handleLooseLetterClick(e) {
             const targetElement = e.target.closest('.loose-letter-slot');
             if (!targetElement) return;
 
-            isDragging = true;
-            draggedFrom = 'loose';
-            draggedLetter = targetElement.dataset.letter;
-            originalLooseSlotIndex = parseInt(targetElement.dataset.index); // Store original index
+            if (selectedRow === -1) return;
 
-            // Remove the letter from the looseLetters array immediately
-            looseLetters.splice(originalLooseSlotIndex, 1); 
-            renderLooseLettersHtml(); // Re-render to reflect the removal
-
-            const rect = targetElement.getBoundingClientRect();
-            dragCurrentX = e.clientX - rect.left + CELL_SIZE / 2;
-            dragCurrentY = e.clientY - rect.top + CELL_SIZE / 2;
-            
-            updateDraggedLetterPosition(e.clientX, e.clientY);
-
-            window.addEventListener('pointermove', handleGlobalPointerMove);
-            window.addEventListener('pointerup', handleGlobalPointerUp);
-            drawGame(); 
-        }
-
-        /**
-         * Updates the position of the dragged letter and redraws.
-         * Also determines the potential drop target.
-         * @param {number} clientX - Current X coordinate of the pointer.
-         * @param {number} clientY - Current Y coordinate of the pointer.
-         */
-        function updateDraggedLetterPosition(clientX, clientY) {
-            const canvasRect = canvas.getBoundingClientRect();
-            const looseRect = looseLettersContainer.getBoundingClientRect();
-
-            const scaleX = canvas.width / canvasRect.width;
-            const scaleY = canvas.height / canvasRect.height;
-
-            const canvasX = (clientX - canvasRect.left) * scaleX;
-            const canvasY = (clientY - canvasRect.top) * scaleY;
-
-            dragCurrentX = canvasX;
-            dragCurrentY = canvasY;
-
-            dropTargetGridCell = null;
-            const hoveredCell = getGridCellAt(canvasX, canvasY);
             const centralColIndex = Math.floor(GRID_SIZE / 2);
+            const letterIndex = parseInt(targetElement.dataset.index);
+            const letter = looseLetters[letterIndex];
 
-            // A letter can only be dropped into a blank spot in the central column
-            if (hoveredCell && hoveredCell.col === centralColIndex && gridData[hoveredCell.row][hoveredCell.col] === null) {
-                dropTargetGridCell = hoveredCell;
-            }
+            gridData[selectedRow][centralColIndex] = letter;
+            looseLetters.splice(letterIndex, 1);
+            renderLooseLettersHtml();
 
-            dropTargetLooseArea = (
-                clientX >= looseRect.left &&
-                clientX <= looseRect.right &&
-                clientY >= looseRect.top &&
-                clientY <= looseRect.bottom
-            );
-
-            drawGame(); 
+            highlightNextEmpty(selectedRow + 1);
+            drawGame();
+            checkWinCondition();
         }
 
-        /**
-         * Handles global pointermove event while dragging.
-         * @param {PointerEvent} e - The pointer event.
-         */
-        function handleGlobalPointerMove(e) {
-            if (!isDragging) return;
-            e.preventDefault(); 
-            updateDraggedLetterPosition(e.clientX, e.clientY);
-        }
-
-        /**
-         * Handles global pointerup event when a letter is released.
-         * @param {PointerEvent} e - The pointer event.
-         */
-        function handleGlobalPointerUp(e) {
-            if (!isDragging) return;
-            e.preventDefault();
-
-            isDragging = false;
-            let dropped = false;
-
-            if (dropTargetGridCell) {
-                // Dropped onto a valid blank grid cell in the central column
-                gridData[dropTargetGridCell.row][dropTargetGridCell.col] = draggedLetter;
-                dropped = true;
-            } else if (dropTargetLooseArea) {
-                // Dropped back into the loose letters container
-                looseLetters.push(draggedLetter);
-                renderLooseLettersHtml(); // Re-render to reflect addition
-                dropped = true;
-            } 
-
-            // If not dropped in a valid target, snap back to original position
-            if (!dropped) {
-                if (draggedFrom === 'grid' && originalGridCell) {
-                    gridData[originalGridCell.row][originalGridCell.col] = draggedLetter;
-                } else if (draggedFrom === 'loose') {
-                    // If it was from loose, it was already removed. Put it back.
-                    looseLetters.splice(originalLooseSlotIndex, 0, draggedLetter); // Insert back at original position
-                    renderLooseLettersHtml();
+        function highlightNextEmpty(start) {
+            const centralColIndex = Math.floor(GRID_SIZE / 2);
+            for (let i = 0; i < GRID_SIZE; i++) {
+                const r = (start + i) % GRID_SIZE;
+                if (gridData[r][centralColIndex] === null) {
+                    selectedRow = r;
+                    return;
                 }
             }
-
-            checkWinCondition();
-
-            // Reset drag state variables
-            draggedLetter = null;
-            draggedFrom = null;
-            originalGridCell = null;
-            originalLooseSlotIndex = -1; 
-            dragCurrentX = 0;
-            dragCurrentY = 0;
-            dropTargetGridCell = null;
-            dropTargetLooseArea = false;
-
-            drawGame(); 
-            window.removeEventListener('pointermove', handleGlobalPointerMove);
-            window.removeEventListener('pointerup', handleGlobalPointerUp);
+            selectedRow = -1;
         }
 
         /**
@@ -1362,10 +1227,10 @@
         // Event listener for resetting the game
         document.getElementById('resetButton').addEventListener('click', initGame);
 
-        // Initialize the game and attach canvas pointerdown listener
+        // Initialize the game and attach canvas tap listener
         window.onload = function() {
             initGame();
-            canvas.addEventListener('pointerdown', handleCanvasPointerDown);
+            canvas.addEventListener('pointerdown', handleCanvasClick);
         };
     </script>
 </body>
