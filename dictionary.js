@@ -1,3 +1,16 @@
+const easy_dictionary = [
+    "apple", "bread", "chair", "dance", "eagle", "flame", "grape", "house", "jelly", "knife",
+    "lemon", "magic", "night", "ocean", "piano", "queen", "river", "snake", "table", "tiger",
+    "uncle", "vivid", "water", "youth", "zebra", "angel", "beach", "cloud", "dream", "earth",
+    "fruit", "giant", "happy", "islet", "jolly", "kitty", "lucky", "mouse", "nurse", "olive",
+    "pearl", "quiet", "robot", "sheep", "train", "unity", "voice", "whale", "yacht", "zesty",
+    "baker", "candy", "daisy", "eager", "frost", "globe", "honey", "inbox", "jumps", "koala",
+    "liver", "mango", "noble", "opera", "panda", "quilt", "rider", "smile", "teeth", "urban",
+    "vapor", "waltz", "wings", "yummy", "zonal", "adore", "brave", "crane", "dodge", "easel",
+    "fable", "grace", "haste", "index", "jewel", "kneel", "latch", "mirth", "nifty", "orbit"
+
+]
+
 const dictionary = [
     "which", "there", "their", "about", "would", "these", "other", "words", "could", "write",
     "first", "water", "after", "where", "right", "think", "three", "years", "place", "sound",
